@@ -55,13 +55,13 @@
 #pragma mark - RYPinchCollectionViewDelegate
 - (BOOL)collectionView:(RYPinchCollectionView *_Nullable)collectionView canMergeItemFromIndexPath:(NSIndexPath *_Nullable)indexPath toTargetIndexPath:(NSIndexPath *_Nullable)targetIndexPath {
     
-    FileModel *targetFile = self.files[targetIndexPath.item];
-    FileModel *desFile = self.files[indexPath.item];
-    
-    // 两个文件夹不能合并
-    if (targetFile.isFolder == YES && desFile.isFolder == YES) {
-        return NO;
-    }
+//    FileModel *targetFile = self.files[targetIndexPath.item];
+//    FileModel *desFile = self.files[indexPath.item];
+//
+//    // 两个文件夹不能合并
+//    if (targetFile.isFolder == YES && desFile.isFolder == YES) {
+//        return NO;
+//    }
     
     return YES;
 }
