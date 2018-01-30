@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		8444965E201EC64C00BCBA12 /* RYCollectionView.m in Sources */ = {isa = PBXBuildFile; fileRef = 8444965D201EC64C00BCBA12 /* RYCollectionView.m */; };
+		8444965E201EC64C00BCBA12 /* RYPinchCollectionView.m in Sources */ = {isa = PBXBuildFile; fileRef = 8444965D201EC64C00BCBA12 /* RYPinchCollectionView.m */; };
 		84B877C32019A6130013A872 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 84B877C22019A6130013A872 /* AppDelegate.m */; };
 		84B877C62019A6130013A872 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 84B877C52019A6130013A872 /* ViewController.m */; };
 		84B877C92019A6130013A872 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 84B877C72019A6130013A872 /* Main.storyboard */; };
@@ -20,8 +20,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		8444965C201EC64C00BCBA12 /* RYCollectionView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RYCollectionView.h; sourceTree = "<group>"; };
-		8444965D201EC64C00BCBA12 /* RYCollectionView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RYCollectionView.m; sourceTree = "<group>"; };
+		8444965C201EC64C00BCBA12 /* RYPinchCollectionView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RYPinchCollectionView.h; sourceTree = "<group>"; };
+		8444965D201EC64C00BCBA12 /* RYPinchCollectionView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = RYPinchCollectionView.m; sourceTree = "<group>"; };
 		84B877BE2019A6130013A872 /* 捏合.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "捏合.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		84B877C12019A6130013A872 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		84B877C22019A6130013A872 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
@@ -83,8 +83,8 @@
 				84B877D72019A9110013A872 /* CollectionViewCell.h */,
 				84B877D82019A9110013A872 /* CollectionViewCell.m */,
 				84B877D92019A9110013A872 /* CollectionViewCell.xib */,
-				8444965C201EC64C00BCBA12 /* RYCollectionView.h */,
-				8444965D201EC64C00BCBA12 /* RYCollectionView.m */,
+				8444965C201EC64C00BCBA12 /* RYPinchCollectionView.h */,
+				8444965D201EC64C00BCBA12 /* RYPinchCollectionView.m */,
 			);
 			path = "捏合";
 			sourceTree = "<group>";
@@ -163,7 +163,7 @@
 			files = (
 				84B877C62019A6130013A872 /* ViewController.m in Sources */,
 				84B877DE2019E1210013A872 /* FileModel.m in Sources */,
-				8444965E201EC64C00BCBA12 /* RYCollectionView.m in Sources */,
+				8444965E201EC64C00BCBA12 /* RYPinchCollectionView.m in Sources */,
 				84B877D12019A6130013A872 /* main.m in Sources */,
 				84B877DA2019A9110013A872 /* CollectionViewCell.m in Sources */,
 				84B877C32019A6130013A872 /* AppDelegate.m in Sources */,

@@ -9,9 +9,9 @@
 #import "ViewController.h"
 #import "CollectionViewCell.h"
 #import "FileModel.h"
-#import "RYCollectionView.h"
+#import "RYPinchCollectionView.h"
 
-@interface ViewController () <UICollectionViewDelegate,UICollectionViewDataSource,UIGestureRecognizerDelegate,RYCollectionViewDelegate>
+@interface ViewController () <UICollectionViewDelegate,UICollectionViewDataSource,UIGestureRecognizerDelegate,RYPinchCollectionViewDelegate>
 
 @property (strong, nonatomic) NSMutableArray *files;
 
@@ -39,7 +39,7 @@
     layout.itemSize = CGSizeMake(150, 250);
     
     
-    RYCollectionView *collectionView = [[RYCollectionView alloc] initWithFrame:rect collectionViewLayout:layout];
+    RYPinchCollectionView *collectionView = [[RYPinchCollectionView alloc] initWithFrame:rect collectionViewLayout:layout];
     collectionView.delegate = self;
     collectionView.dataSource = self;
     collectionView.pinchDelegate = self;
@@ -52,25 +52,38 @@
 
 
 
-#pragma mark - RYCollectionViewDelegate
-- (BOOL)collectionView:(RYCollectionView *_Nullable)collectionView canMoveItemFromIndexPath:(NSIndexPath *_Nullable)indexPath toTargetIndexPath:(NSIndexPath *_Nullable)targetIndexPath {
-    return NO;
+#pragma mark - RYPinchCollectionViewDelegate
+- (BOOL)collectionView:(RYPinchCollectionView *_Nullable)collectionView canMergeItemFromIndexPath:(NSIndexPath *_Nullable)indexPath toTargetIndexPath:(NSIndexPath *_Nullable)targetIndexPath {
+    
+    FileModel *targetFile = self.files[targetIndexPath.item];
+    FileModel *desFile = self.files[indexPath.item];
+    
+    // 两个文件夹不能合并
+    if (targetFile.isFolder == YES && desFile.isFolder == YES) {
+        return NO;
+    }
+    
+    return YES;
 }
 
-
-- (NSIndexPath *)collectionView:(RYCollectionView *)collectionView targetIndexPathFromStartIndexPath:(NSIndexPath *)startIndexPath withEndIndexPath:(NSIndexPath *)endIndexPath {
+- (NSIndexPath *)collectionView:(RYPinchCollectionView *)collectionView targetIndexPathFromStartIndexPath:(NSIndexPath *)startIndexPath withEndIndexPath:(NSIndexPath *)endIndexPath {
     return startIndexPath;
 }
 
-- (void)collectionView:(RYCollectionView *_Nullable)collectionView didMoveItemAtIndexPath:(NSIndexPath *_Nullable)targetIndexPath toIndexPath:(NSIndexPath *_Nullable)indexPath inSection:(NSInteger)section {
+- (CGSize)collectionView:(RYPinchCollectionView *)collectionView distanceSizeItemAtIndexPath:(NSIndexPath *)indexPath {
+    return CGSizeMake(-30, -30);
+}
+
+- (void)collectionView:(RYPinchCollectionView *)collectionView willMergeTargetView:(UIView *)targetView targetIndexPath:(NSIndexPath *)targetIndexPath {
+    
+}
+
+- (void)collectionView:(RYPinchCollectionView *_Nullable)collectionView didMergeItemAtIndexPath:(NSIndexPath *_Nullable)targetIndexPath toIndexPath:(NSIndexPath *_Nullable)indexPath inSection:(NSInteger)section {
     
     FileModel *file = self.files[targetIndexPath.item];
     file.isFolder = YES;
     [self.files removeObjectAtIndex:indexPath.item];
 }
-
-
-
 
 
 #pragma mark - UICollectionViewDelegate,UICollectionViewDataSource
@@ -101,7 +114,7 @@
     
     if (!fileModel.isFolder) {
         cell.label.text = fileModel.name;
-        cell.label.backgroundColor = [UIColor groupTableViewBackgroundColor];
+        cell.label.backgroundColor = [UIColor lightGrayColor];
     } else {
         cell.label.text = [NSString stringWithFormat:@"文件夹%@",fileModel.name];
         cell.label.backgroundColor = [UIColor redColor];
