@@ -26,12 +26,18 @@
 @property (assign, nonatomic) CGPoint targetStartCenter;
 @property (assign, nonatomic) CGPoint desStartCenter;
 
+@property (assign, nonatomic) CGPoint targetOldCenter;
+@property (assign, nonatomic) CGPoint desOldCenter;
+
 @property (assign, nonatomic) CGSize targetCenterOffset;
 @property (assign, nonatomic) CGSize desCenterOffset;
 
 
 // 是否还在动画状态
 @property (assign, nonatomic) BOOL isAnimating;
+
+// 开始移动
+@property (assign, nonatomic) BOOL isBeginScroll;
 
 @end
 
@@ -61,9 +67,10 @@
             }
                 break;
             default: {
-              [self cancelMergeFolder];
+                [self cancelMergeFolder];
+                
             }
-            break;
+                break;
         }
     }else {
         [self cancelMergeFolder];
@@ -101,7 +108,6 @@
         windowPoint2 = tempWindowPoint;
     }
     
-    
     self.targetCell = [self cellForItemAtIndexPath:self.targetIndexPath];
     self.desCell = [self cellForItemAtIndexPath:self.desIndexPath];
     
@@ -110,7 +116,6 @@
         return;
     }
     
-
     self.targetStartCenter = [self convertPoint:self.targetCell.center toView:nil];
     self.desStartCenter = [self convertPoint:self.desCell.center toView:nil];
     
@@ -126,7 +131,6 @@
     
     self.targetView.center = self.targetStartCenter;
     self.desView.center = self.desStartCenter;
-    
     
     [[UIApplication sharedApplication].keyWindow addSubview:self.targetView];
     [[UIApplication sharedApplication].keyWindow addSubview:self.desView];
@@ -144,22 +148,37 @@
         return;
     }
     
+    
+    
     // 相对于window的两个坐标点
     CGPoint windowPoint1 = [sender locationOfTouch:0 inView:nil];
     CGPoint windowPoint2 = [sender locationOfTouch:1 inView:nil];
     
     // 判断哪个坐标是targetView, 哪个是desView
-    if (!CGRectContainsPoint(self.targetView.frame, windowPoint1)) {
-        CGPoint tempPoint = windowPoint1;
-        windowPoint1 = windowPoint2;
-        windowPoint2 = tempPoint;
+    if (self.isBeginScroll == NO) {
+        if (!CGRectContainsPoint(self.targetView.frame, windowPoint1)) {
+            CGPoint tempPoint = windowPoint1;
+            windowPoint1 = windowPoint2;
+            windowPoint2 = tempPoint;
+        }
+    } else {
+        if (sqrt(pow(windowPoint1.x - self.targetOldCenter.x , 2 ) + pow(windowPoint1.y - self.targetOldCenter.y , 2)) > sqrt(pow(windowPoint2.x - self.targetOldCenter.x , 2 ) + pow(windowPoint2.y - self.targetOldCenter.y , 2))) {
+            
+            CGPoint tempPoint = windowPoint1;
+            windowPoint1 = windowPoint2;
+            windowPoint2 = tempPoint;
+        }
     }
-    
     
     // 实时移动
     self.targetView.center = CGPointMake(windowPoint1.x - self.targetCenterOffset.width, windowPoint1.y - self.targetCenterOffset.height);
     self.desView.center = CGPointMake(windowPoint2.x - self.desCenterOffset.width, windowPoint2.y - self.desCenterOffset.height);
     
+    self.targetOldCenter = windowPoint1;
+    self.desOldCenter = windowPoint2;
+    
+    
+    self.isBeginScroll = YES;
     
     // 获取两个cell 重叠多少距离，开始合并成一个文件夹
     CGSize distanceSize = CGSizeMake(-30, -30);
@@ -220,14 +239,14 @@
         [UIView animateWithDuration:0.3 animations:^{
             self.targetView.center = self.targetStartCenter;
         } completion:^(BOOL finished) {
-            [self.targetView removeFromSuperview];
+            //[self.targetView removeFromSuperview];
             
             self.isAnimating = NO;
-
+            
             if ([self.pinchDelegate respondsToSelector:@selector(collectionView:didMergeItemAtIndexPath:toIndexPath:inSection:)]) {
                 [self.pinchDelegate collectionView:self didMergeItemAtIndexPath:self.targetIndexPath toIndexPath:self.desIndexPath inSection:0];
             }
-            [self reloadSection];
+            //            [self reloadSection];
         }];
     }];
 }
@@ -249,13 +268,10 @@
     // 默认是合并到第一个cell中
     if ([self.pinchDelegate respondsToSelector:@selector(collectionView:targetIndexPathFromStartIndexPath:withEndIndexPath:)]) {
         
+        // 如果是合并到后面的cell， 需要进行数据交换
         if (self.targetIndexPath != [self.pinchDelegate collectionView:self targetIndexPathFromStartIndexPath:self.targetIndexPath withEndIndexPath: self.desIndexPath]) {
             
-            NSInteger value = self.targetIndexPath.item - self.desIndexPath.item;
-            if (value == -1 || value == 1) {
-                return ;
-            }
-            
+            // 交换数据
             UICollectionViewCell *tempCell = self.targetCell;
             self.targetCell = self.desCell;
             self.desCell = tempCell;
@@ -267,14 +283,20 @@
             NSIndexPath *tempIndexPath = self.targetIndexPath;
             self.targetIndexPath = self.desIndexPath;
             self.desIndexPath = tempIndexPath;
-        
-            CGPoint tempCenter = self.targetStartCenter;
-            self.targetStartCenter = self.desStartCenter;
-            self.desStartCenter = tempCenter;
             
-            CGSize tempOffset = self.targetCenterOffset;
-            self.targetCenterOffset = self.desCenterOffset;
-            self.desCenterOffset = tempOffset;
+            
+            // 不相邻的两个
+            int value = self.targetIndexPath.item - self.desIndexPath.item;
+            if (abs(value) != 1) {
+                
+                CGPoint tempCenter = self.targetStartCenter;
+                self.targetStartCenter = self.desStartCenter;
+                self.desStartCenter = tempCenter;
+                
+                CGSize tempOffset = self.targetCenterOffset;
+                self.targetCenterOffset = self.desCenterOffset;
+                self.desCenterOffset = tempOffset;
+            }
         }
     }
 }
@@ -292,6 +314,7 @@
             self.desCell.hidden = NO;
             self.targetCell = nil;
             self.desCell = nil;
+            [self.targetView removeFromSuperview];
         }];
     }];
 }
@@ -299,6 +322,8 @@
 
 #pragma mark - 取消合并
 - (void)cancelMergeFolder {
+    
+    self.isBeginScroll = NO;
     
     if (self.isAnimating) {
         return;
@@ -349,3 +374,4 @@
 
 
 @end
+

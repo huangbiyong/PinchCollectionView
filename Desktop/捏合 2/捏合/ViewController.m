@@ -1,131 +1,347 @@
 //
-//  ViewController.m
+//  RYPinchCollectionView.m
 //  捏合
 //
-//  Created by Admin on 2018/1/25.
+//  Created by Admin on 2018/1/29.
 //  Copyright © 2018年 Admin. All rights reserved.
 //
 
-#import "ViewController.h"
-#import "CollectionViewCell.h"
-#import "FileModel.h"
 #import "RYPinchCollectionView.h"
 
-@interface ViewController () <UICollectionViewDelegate,UICollectionViewDataSource,UIGestureRecognizerDelegate,RYPinchCollectionViewDelegate>
 
-@property (strong, nonatomic) NSMutableArray *files;
+@interface RYPinchCollectionView ()
 
-@end
+// 手指捏合的两个cell
+@property (weak, nonatomic) UICollectionViewCell *targetCell;
+@property (weak, nonatomic) UICollectionViewCell *desCell;
 
-@implementation ViewController
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    // Do any additional setup after loading the view, typically from a nib.
-    
-    self.files = [NSMutableArray array];
-    for (NSInteger i = 0; i < 10; i++) {
-        FileModel *fileModel = [[FileModel alloc] init];
-        fileModel.name = [NSString stringWithFormat:@"%ld",i];
-        [self.files addObject:fileModel];
-    }
-    
-    
-    CGRect rect = [UIScreen mainScreen].bounds;
-    
-    UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
-    layout.minimumLineSpacing = 20;
-    layout.minimumInteritemSpacing = 10;
-    layout.itemSize = CGSizeMake(150, 250);
-    
-    
-    RYPinchCollectionView *collectionView = [[RYPinchCollectionView alloc] initWithFrame:rect collectionViewLayout:layout];
-    collectionView.delegate = self;
-    collectionView.dataSource = self;
-    collectionView.pinchDelegate = self;
-    [collectionView setupCollectionPinch];
-    [self.view addSubview:collectionView];
-    
-    [collectionView registerNib:[UINib nibWithNibName:@"CollectionViewCell" bundle:nil] forCellWithReuseIdentifier:@"cell"];
-    
-}
-
-
-
-#pragma mark - RYPinchCollectionViewDelegate
-- (BOOL)collectionView:(RYPinchCollectionView *_Nullable)collectionView canMergeItemFromIndexPath:(NSIndexPath *_Nullable)indexPath toTargetIndexPath:(NSIndexPath *_Nullable)targetIndexPath {
-    
-//    FileModel *targetFile = self.files[targetIndexPath.item];
-//    FileModel *desFile = self.files[indexPath.item];
 //
-//    // 两个文件夹不能合并
-//    if (targetFile.isFolder == YES && desFile.isFolder == YES) {
-//        return NO;
-//    }
+@property (weak, nonatomic) UIView *targetView;
+@property (weak, nonatomic) UIView *desView;
+
+@property (strong, nonatomic) NSIndexPath *targetIndexPath;
+@property (strong, nonatomic) NSIndexPath *desIndexPath;
+
+
+@property (assign, nonatomic) CGPoint targetStartCenter;
+@property (assign, nonatomic) CGPoint desStartCenter;
+
+@property (assign, nonatomic) CGSize targetCenterOffset;
+@property (assign, nonatomic) CGSize desCenterOffset;
+
+
+// 是否还在动画状态
+@property (assign, nonatomic) BOOL isAnimating;
+
+@end
+
+@implementation RYPinchCollectionView
+
+// 初始化pinch手势
+- (void)setupCollectionPinch {
+    UIPinchGestureRecognizer *pinch = [[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(pinch:)];
+    [self addGestureRecognizer:pinch];
+}
+
+- (void)pinch:(UIPinchGestureRecognizer*)sender {
+    //NSLog(@"%ld",sender.state);
     
-    return YES;
+    if (sender.numberOfTouches == 2) {
+        
+        switch (sender.state) {
+                
+            case UIGestureRecognizerStateBegan:
+            {
+                [self pinchBegan:sender];
+            }
+                break;
+            case UIGestureRecognizerStateChanged:
+            {
+                [self pinchChange:sender];
+            }
+                break;
+            default: {
+                [self cancelMergeFolder];
+            }
+                break;
+        }
+    }else {
+        [self cancelMergeFolder];
+    }
 }
 
-- (NSIndexPath *)collectionView:(RYPinchCollectionView *)collectionView targetIndexPathFromStartIndexPath:(NSIndexPath *)startIndexPath withEndIndexPath:(NSIndexPath *)endIndexPath {
-    return startIndexPath;
-}
 
-- (CGSize)collectionView:(RYPinchCollectionView *)collectionView distanceSizeItemAtIndexPath:(NSIndexPath *)indexPath {
-    return CGSizeMake(-30, -30);
-}
 
-- (void)collectionView:(RYPinchCollectionView *)collectionView willMergeTargetView:(UIView *)targetView targetIndexPath:(NSIndexPath *)targetIndexPath {
+#pragma mark - 捏合手势，开始时
+- (void)pinchBegan:(UIPinchGestureRecognizer *)sender {
     
-}
-
-- (void)collectionView:(RYPinchCollectionView *_Nullable)collectionView didMergeItemAtIndexPath:(NSIndexPath *_Nullable)targetIndexPath toIndexPath:(NSIndexPath *_Nullable)indexPath inSection:(NSInteger)section {
+    // 相对于self的两个坐标点
+    CGPoint point1 = [sender locationOfTouch:0 inView:self];
+    CGPoint point2 = [sender locationOfTouch:1 inView:self];
     
-    FileModel *file = self.files[targetIndexPath.item];
-    file.isFolder = YES;
-    [self.files removeObjectAtIndex:indexPath.item];
-}
-
-
-#pragma mark - UICollectionViewDelegate,UICollectionViewDataSource
-
-#pragma mark - ---------- 允许拖动 ----------
-- (BOOL)collectionView:(UICollectionView *)collectionView canMoveItemAtIndexPath:(NSIndexPath *)indexPath{
-    return YES;
-}
-
-#pragma mark - ---------- 更新数据源 ----------
-- (void)collectionView:(UICollectionView *)collectionView moveItemAtIndexPath:(NSIndexPath *)sourceIndexPath toIndexPath:(NSIndexPath*)destinationIndexPath {
-
-}
-
-
-- (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section {
-    return self.files.count;
-}
-
-- (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath {
+    // 相对于window的两个坐标点
+    CGPoint windowPoint1 = [sender locationOfTouch:0 inView:nil];
+    CGPoint windowPoint2 = [sender locationOfTouch:1 inView:nil];
     
-    FileModel *fileModel = self.files[indexPath.item];
+    self.targetIndexPath = [self indexPathForItemAtPoint:point1];
+    self.desIndexPath = [self indexPathForItemAtPoint:point2];
     
-    CollectionViewCell *cell = [collectionView dequeueReusableCellWithReuseIdentifier:@"cell" forIndexPath:indexPath];
-    //cell.hidden = NO;
-    
-    cell.indexPath = indexPath;
-    
-    if (!fileModel.isFolder) {
-        cell.label.text = fileModel.name;
-        cell.label.backgroundColor = [UIColor lightGrayColor];
-    } else {
-        cell.label.text = [NSString stringWithFormat:@"文件夹%@",fileModel.name];
-        cell.label.backgroundColor = [UIColor redColor];
+    // 重新排列
+    if (self.targetIndexPath.item > self.desIndexPath.item) {
+        NSIndexPath *tempIndexPath = self.targetIndexPath;
+        self.targetIndexPath = self.desIndexPath;
+        self.desIndexPath = tempIndexPath;
+        
+        CGPoint tempPoint = point1;
+        point1 = point2;
+        point2 = tempPoint;
+        
+        CGPoint tempWindowPoint = windowPoint1;
+        windowPoint1 = windowPoint2;
+        windowPoint2 = tempWindowPoint;
     }
     
-    return cell;
+    self.targetCell = [self cellForItemAtIndexPath:self.targetIndexPath];
+    self.desCell = [self cellForItemAtIndexPath:self.desIndexPath];
+    
+    
+    if (![self validateCells]) {
+        return;
+    }
+    
+    self.targetStartCenter = [self convertPoint:self.targetCell.center toView:nil];
+    self.desStartCenter = [self convertPoint:self.desCell.center toView:nil];
+    
+    self.targetCenterOffset = CGSizeMake(windowPoint1.x - self.targetStartCenter.x, windowPoint1.y - self.targetStartCenter.y);
+    self.desCenterOffset = CGSizeMake(windowPoint2.x - self.desStartCenter.x, windowPoint2.y - self.desStartCenter.y);
+    
+    
+    self.targetView = [self.targetCell snapshotViewAfterScreenUpdates:NO];
+    self.desView = [self.desCell snapshotViewAfterScreenUpdates:NO];
+    
+    self.targetView.frame = self.targetCell.frame;
+    self.desView.frame = self.desCell.frame;
+    
+    self.targetView.center = self.targetStartCenter;
+    self.desView.center = self.desStartCenter;
+    
+    [[UIApplication sharedApplication].keyWindow addSubview:self.targetView];
+    [[UIApplication sharedApplication].keyWindow addSubview:self.desView];
+    
+    
+    self.targetCell.hidden = YES;
+    self.desCell.hidden = YES;
 }
 
-- (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath {
-    //NSLog(@"indexPathsForSelectedItems: %@", collectionView.indexPathsForSelectedItems);
+
+#pragma mark - 捏合手势，正在滑动
+- (void)pinchChange:(UIPinchGestureRecognizer *)sender {
+    
+    if (![self validateCells] || self.isAnimating) {
+        return;
+    }
+    
+    // 相对于window的两个坐标点
+    CGPoint windowPoint1 = [sender locationOfTouch:0 inView:nil];
+    CGPoint windowPoint2 = [sender locationOfTouch:1 inView:nil];
+    
+    // 判断哪个坐标是targetView, 哪个是desView
+    if (!CGRectContainsPoint(self.targetView.frame, windowPoint1)) {
+        CGPoint tempPoint = windowPoint1;
+        windowPoint1 = windowPoint2;
+        windowPoint2 = tempPoint;
+    }
+    
+    
+    // 实时移动
+    self.targetView.center = CGPointMake(windowPoint1.x - self.targetCenterOffset.width, windowPoint1.y - self.targetCenterOffset.height);
+    self.desView.center = CGPointMake(windowPoint2.x - self.desCenterOffset.width, windowPoint2.y - self.desCenterOffset.height);
+    
+    
+    // 获取两个cell 重叠多少距离，开始合并成一个文件夹
+    CGSize distanceSize = CGSizeMake(-30, -30);
+    if ([self.pinchDelegate respondsToSelector:@selector(collectionView:distanceSizeItemAtIndexPath:)]) {
+        distanceSize = [self.pinchDelegate collectionView:self distanceSizeItemAtIndexPath:self.targetIndexPath];
+    }
+    
+    
+    // 开始生成一个文件夹
+    CGFloat distanceX = fabs(self.targetView.center.x - self.desView.center.x);
+    CGFloat distanceY = fabs(self.targetView.center.y - self.desView.center.y);
+    
+    if (distanceX < self.targetView.frame.size.width + distanceSize.width && distanceY < self.targetView.frame.size.height + distanceSize.height) {
+        [self pinchMergeFolder];
+    }
 }
+
+
+#pragma mark - 判断捏合的两个cell，是否有效
+- (BOOL)validateCells {
+    
+    if (!self.targetCell || !self.desCell || self.targetCell == self.desCell) {
+        return NO;
+    }
+    return YES;
+}
+
+
+#pragma mark - 捏合两个cell，合成一个文件夹时调用
+- (void)pinchMergeFolder {
+    
+    // 如果不能合并，手动取消合并
+    if (![self canMergeFolder]) {
+        [self cancelMergeFolder];
+        self.isAnimating = YES;
+        return ;
+    }
+    
+    self.isAnimating = YES;
+    [self updateTargetCell];
+    
+    [UIView animateWithDuration:0.4 animations:^{
+        self.desView.center = self.targetView.center;
+        self.desView.transform = CGAffineTransformMakeScale(0.4, 0.4);
+    } completion:^(BOOL finished) {
+        [self.desView removeFromSuperview];
+        
+        // 移动desIndexPath到最后一个cell位置， 实现冒泡效果
+        if (self.desIndexPath.item < [self numberOfItemsInSection:0]-1) {
+            [self moveItemAtIndexPath:self.desIndexPath toIndexPath:[NSIndexPath indexPathForItem:[self numberOfItemsInSection:0]-1 inSection:0]];
+        }
+        
+        // 将要合并
+        if ([self.pinchDelegate respondsToSelector:@selector(collectionView:willMergeTargetView:targetIndexPath:)]) {
+            [self.pinchDelegate collectionView:self willMergeTargetView:self.targetView targetIndexPath:self.targetIndexPath];
+        }
+        
+        [UIView animateWithDuration:0.3 animations:^{
+            self.targetView.center = self.targetStartCenter;
+        } completion:^(BOOL finished) {
+            //[self.targetView removeFromSuperview];
+            
+            self.isAnimating = NO;
+            
+            if ([self.pinchDelegate respondsToSelector:@selector(collectionView:didMergeItemAtIndexPath:toIndexPath:inSection:)]) {
+                [self.pinchDelegate collectionView:self didMergeItemAtIndexPath:self.targetIndexPath toIndexPath:self.desIndexPath inSection:0];
+            }
+            //            [self reloadSection];
+        }];
+    }];
+}
+
+
+#pragma mark - 是否可以合并， 可以自由设置， 默认可以合并
+- (BOOL)canMergeFolder {
+    
+    if ([self.pinchDelegate respondsToSelector:@selector(collectionView:canMergeItemFromIndexPath:toTargetIndexPath:)]) {
+        return [self.pinchDelegate collectionView:self canMergeItemFromIndexPath:self.desIndexPath toTargetIndexPath:self.targetIndexPath];
+    }
+    return YES;
+}
+
+
+#pragma mark - 合并时更新目标cell，view, IndexPath， 获取外界设置的目标cell
+- (void)updateTargetCell {
+    
+    // 默认是合并到第一个cell中
+    if ([self.pinchDelegate respondsToSelector:@selector(collectionView:targetIndexPathFromStartIndexPath:withEndIndexPath:)]) {
+        
+        // 如果是合并到后面的cell， 需要进行数据交换
+        if (self.targetIndexPath != [self.pinchDelegate collectionView:self targetIndexPathFromStartIndexPath:self.targetIndexPath withEndIndexPath: self.desIndexPath]) {
+            
+            // 交换数据
+            UICollectionViewCell *tempCell = self.targetCell;
+            self.targetCell = self.desCell;
+            self.desCell = tempCell;
+            
+            UIView *tempView = self.targetView;
+            self.targetView = self.desView;
+            self.desView = tempView;
+            
+            NSIndexPath *tempIndexPath = self.targetIndexPath;
+            self.targetIndexPath = self.desIndexPath;
+            self.desIndexPath = tempIndexPath;
+            
+            
+            // 不相邻的两个
+            int value = self.targetIndexPath.item - self.desIndexPath.item;
+            if (abs(value) != 1) {
+                
+                CGPoint tempCenter = self.targetStartCenter;
+                self.targetStartCenter = self.desStartCenter;
+                self.desStartCenter = tempCenter;
+                
+                CGSize tempOffset = self.targetCenterOffset;
+                self.targetCenterOffset = self.desCenterOffset;
+                self.desCenterOffset = tempOffset;
+            }
+        }
+    }
+}
+
+
+
+#pragma mark - 重载数据
+- (void)reloadSection {
+    
+    [UIView animateWithDuration:0 animations:^{
+        [self performBatchUpdates:^{
+            [self reloadSections:[NSIndexSet indexSetWithIndex:0]];
+        } completion:^(BOOL finished) {
+            self.targetCell.hidden = NO;
+            self.desCell.hidden = NO;
+            self.targetCell = nil;
+            self.desCell = nil;
+            [self.targetView removeFromSuperview];
+        }];
+    }];
+}
+
+
+#pragma mark - 取消合并
+- (void)cancelMergeFolder {
+    
+    if (self.isAnimating) {
+        return;
+    }
+    
+    [UIView animateWithDuration:0.3 animations:^{
+        self.targetView.center = self.targetStartCenter;
+        self.desView.center = self.desStartCenter;
+    } completion:^(BOOL finished) {
+        [self.targetView removeFromSuperview];
+        [self.desView removeFromSuperview];
+        
+        self.targetCell.hidden = NO;
+        self.desCell.hidden = NO;
+        
+        self.targetCell = nil;
+        self.desCell = nil;
+        
+        self.targetView = nil;
+        self.desView = nil;
+        
+        self.isAnimating = NO;
+        
+        [self reloadSection];
+    }];
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -134,3 +350,4 @@
 
 
 @end
+
